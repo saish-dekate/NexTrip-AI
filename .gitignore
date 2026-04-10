@@ -14,6 +14,7 @@ build
 # Misc
 .DS_Store
 *.pem
+nul
 
 # Debug
 npm-debug.log*
@@ -23,6 +24,7 @@ yarn-error.log*
 # Local env files
 .env
 .env.local
+.env.example
 .env.development.local
 .env.test.local
 .env.production.local
