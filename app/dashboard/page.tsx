@@ -253,7 +253,7 @@ function DashboardContent() {
       const data = await res.json();
       
       const flights = generateFlights(formData.source, formData.destination, formData.duration, formData.budget);
-      const transport = generateTransport(formData.source, formData.destination);
+      const transport = generateTransport(formData.source, formData.destination, formData.budget);
       
       setItinerary({
         destination: formData.destination,
