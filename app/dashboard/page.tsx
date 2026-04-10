@@ -97,6 +97,8 @@ interface TransportOption {
   bookingUrl: string;
   provider: string;
   priceUnit?: string;
+  available?: boolean;
+  notPossibleReason?: string;
 }
 
 const TransportCard = ({ transport, delay }: { transport: TransportOption; delay: number }) => {
