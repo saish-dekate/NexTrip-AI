@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String         @id @default(cuid())
+  email          String         @unique
+  name           String?
+  image          String?
+  password       String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  accounts       Account[]
+  sessions       Session[]
+  itineraries    Itinerary[]    @relation("UserItineraries")
+  collaborations Collaborator[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Itinerary {
+  id             String        @id @default(cuid())
+  userId         String
+  title          String
+  description    String?
+  destination    String
+  source         String
+  startDate      DateTime
+  endDate        DateTime
+  budget         Float
+  mood           String?
+  preferences    String?
+  shareToken     String        @unique @default(uuid())
+  aiContext      String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  user           User          @relation("UserItineraries", fields: [userId], references: [id])
+  days           Day[]
+  flights        Flight[]
+  collaborators  Collaborator[]
+}
+
+model Day {
+  id          String     @id @default(cuid())
+  itineraryId String
+  dayNumber   Int
+  date        DateTime
+  activities  Activity[]
+  itinerary   Itinerary  @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id                String  @id @default(cuid())
+  dayId             String
+  title             String
+  category          String
+  cuisineType       String?
+  cost              Float
+  carbonFootprint   Float
+  accessibilityInfo String?
+  startTime        String
+  endTime          String
+  latitude          Float
+  longitude         Float
+  order             Int
+  day               Day     @relation(fields: [dayId], references: [id], onDelete: Cascade)
+}
+
+model Flight {
+  id               String    @id @default(cuid())
+  itineraryId      String
+  airline          String
+  departureTime    DateTime
+  arrivalTime      DateTime
+  duration         String
+  price            Float
+  source           String
+  destination      String
+  carbonFootprint  Float
+  itinerary        Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+}
+
+model Collaborator {
+  id           String    @id @default(cuid())
+  itineraryId  String
+  userId       String
+  role         String
+  joinedAt     DateTime  @default(now())
+  itinerary    Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@unique([itineraryId, userId])
+}
