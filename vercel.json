@@ -2,7 +2,7 @@
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["blr1"],
+  "regions": ["singapore1"],
   "env": {
     "NEXT_PUBLIC_APP_URL": "@next_public_app_url"
   }
