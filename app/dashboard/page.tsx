@@ -203,12 +203,6 @@ const TransportCard = ({ transport, delay }: { transport: TransportOption; delay
 
 function DashboardContent() {
   const searchParams = useSearchParams();
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('nextrip-theme') === 'dark';
-    }
-    return false;
-  });
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('plan');
   const [itinerary, setItinerary] = useState<GeneratedItinerary | null>(null);
@@ -217,13 +211,6 @@ function DashboardContent() {
   const [isSaved, setIsSaved] = useState(false);
   const [showDestinationDropdown, setShowDestinationDropdown] = useState(false);
   
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('nextrip-theme', isDark ? 'dark' : 'light');
-      document.documentElement.classList.toggle('dark', isDark);
-    }
-  }, [isDark]);
-
   const [formData, setFormData] = useState({
     source: searchParams.get('source') || '',
     destination: searchParams.get('destination') || '',
@@ -682,7 +669,7 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onToggleTheme={() => setIsDark(!isDark)} isDark={isDark} />
+      <Header />
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
