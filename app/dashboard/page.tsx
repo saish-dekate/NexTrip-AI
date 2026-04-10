@@ -86,6 +86,119 @@ const destinationImages: Record<string, string> = {
   'Bangkok': 'https://images.unsplash.com/photo-1528181304800-259b08848526?w=400',
 };
 
+interface TransportOption {
+  type: string;
+  name: string;
+  icon: string;
+  description: string;
+  price: number;
+  duration: string;
+  carbon: number;
+  bookingUrl: string;
+  provider: string;
+  priceUnit?: string;
+}
+
+const TransportCard = ({ transport, delay }: { transport: TransportOption; delay: number }) => {
+  const isAvailable = transport.available !== false;
+  
+  const getIcon = () => {
+    switch (transport.icon) {
+      case 'plane': return <Plane className="h-6 w-6" />;
+      case 'train': return <Train className="h-6 w-6" />;
+      case 'bus': return <Bus className="h-6 w-6" />;
+      case 'car': return <Car className="h-6 w-6" />;
+      case 'subway': return <Navigation2 className="h-6 w-6" />;
+      case 'ship': return <Navigation className="h-6 w-6" />;
+      default: return <MapPin className="h-6 w-6" />;
+    }
+  };
+
+  const getColor = () => {
+    if (!isAvailable) {
+      return { bg: 'bg-gray-100 dark:bg-gray-800/30', text: 'text-gray-400', border: 'border-gray-200 dark:border-gray-700' };
+    }
+    switch (transport.type) {
+      case 'flight': return { bg: 'bg-sky-100 dark:bg-sky-900/30', text: 'text-sky-600', border: 'border-sky-200 dark:border-sky-800' };
+      case 'train': return { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-600', border: 'border-green-200 dark:border-green-800' };
+      case 'bus': return { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-600', border: 'border-orange-200 dark:border-orange-800' };
+      case 'car': return { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600', border: 'border-blue-200 dark:border-blue-800' };
+      case 'metro': return { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-600', border: 'border-purple-200 dark:border-purple-800' };
+      case 'ferry': return { bg: 'bg-teal-100 dark:bg-teal-900/30', text: 'text-teal-600', border: 'border-teal-200 dark:border-teal-800' };
+      default: return { bg: 'bg-gray-100 dark:bg-gray-900/30', text: 'text-gray-600', border: 'border-gray-200' };
+    }
+  };
+
+  const colors = getColor();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: isAvailable ? 1 : 0.6, y: 0 }}
+      transition={{ delay }}
+    >
+      <Card className={cn("h-full hover:shadow-lg transition-shadow border-2", colors.border)}>
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-3">
+            <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center", colors.bg)}>
+              <span className={colors.text}>{getIcon()}</span>
+            </div>
+            <div className="flex-1">
+              <CardTitle className="text-base">{transport.name}</CardTitle>
+              <p className="text-sm text-muted-foreground capitalize">{transport.type} - {transport.provider}</p>
+            </div>
+            {!isAvailable && (
+              <Badge variant="destructive" className="text-xs">Not Available</Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">{transport.description}</p>
+          {isAvailable ? (
+            <>
+              <div className="space-y-2 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Duration</span>
+                  <span className="font-medium">{transport.duration}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Price</span>
+                  <span className="font-bold text-lg text-primary">
+                    {transport.priceUnit === 'per km' || transport.priceUnit === 'per day' 
+                      ? `₹${transport.price} ${transport.priceUnit}` 
+                      : formatCurrency(transport.price)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Carbon</span>
+                  <Badge variant="outline" className={cn(transport.carbon < 30 && 'bg-green-50 text-green-700')}>
+                    {transport.carbon} kg CO₂
+                  </Badge>
+                </div>
+              </div>
+              <a href={transport.bookingUrl} target="_blank" rel="noopener noreferrer" className="block">
+                <Button className="w-full" variant={transport.type === 'flight' ? 'default' : 'outline'}>
+                  Book on {transport.provider}
+                  <ExternalLink className="h-3 w-3 ml-2" />
+                </Button>
+              </a>
+            </>
+          ) : (
+            <div className="bg-muted/50 rounded-lg p-4 text-center">
+              <p className="text-sm text-muted-foreground mb-2">
+                {transport.notPossibleReason || 'This option is not available for your selected budget'}
+              </p>
+              <p className="text-xs text-muted-foreground/70">
+                Try increasing your budget or selecting a different transport option
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
+
 function DashboardContent() {
   const searchParams = useSearchParams();
   const [isDark, setIsDark] = useState(() => {
@@ -139,7 +252,7 @@ function DashboardContent() {
 
       const data = await res.json();
       
-      const flights = generateFlights(formData.source, formData.destination, formData.duration);
+      const flights = generateFlights(formData.source, formData.destination, formData.duration, formData.budget);
       const transport = generateTransport(formData.source, formData.destination);
       
       setItinerary({
@@ -163,79 +276,313 @@ function DashboardContent() {
     }
   };
 
-  const generateFlights = (source: string, destination: string, days: number): Flight[] => {
-    const airlines = ['IndiGo', 'Air India', 'Vistara', 'SpiceJet', 'Emirates', 'Singapore Airlines'];
-    const flights: Flight[] = [];
+  const generateFlights = (source: string, destination: string, days: number, budget: number): Flight[] => {
+    const srcLower = source.toLowerCase();
+    const destLower = destination.toLowerCase();
     
-    for (let i = 0; i < 5; i++) {
-      const isDirect = i < 2;
-      const stops = isDirect ? 0 : Math.random() > 0.5 ? 1 : 2;
-      const basePrice = stops === 0 ? 8000 : stops === 1 ? 6500 : 5500;
-      const priceVariation = Math.floor(Math.random() * 4000);
-      const departureHour = 6 + i * 2;
+    const metroCities = ['delhi', 'mumbai', 'bangalore', 'chennai', 'kolkata', 'hyderabad', 'pune', 'jaipur', 'goa', 'kochi', 'ahmedabad'];
+    const internationalCities = ['dubai', 'singapore', 'bangkok', 'paris', 'london', 'tokyo', 'new york', 'sydney', 'bali', 'malaysia', 'nepal', 'sri lanka'];
+    const shortRoutes = ['delhi-mumbai', 'mumbai-delhi', 'delhi-jaipur', 'delhi-agra', 'bangalore-mysore', 'mumbai-pune', 'delhi-chandigarh', 'mumbai-goa'];
+    
+    const routeKey = `${srcLower}-${destLower}`;
+    const reverseRouteKey = `${destLower}-${srcLower}`;
+    
+    const isInternational = internationalCities.includes(srcLower) || internationalCities.includes(destLower);
+    const hasDirectFlights = metroCities.includes(srcLower) && metroCities.includes(destLower) && !isInternational;
+    const isShortRoute = shortRoutes.includes(routeKey) || shortRoutes.includes(reverseRouteKey);
+    const isNearbyCities = ['delhi-agra', 'agra-delhi', 'mumbai-goa', 'goa-mumbai'].includes(routeKey);
+    
+    const airlinesIndian = ['IndiGo', 'Air India', 'Vistara', 'SpiceJet', 'AirAsia'];
+    const airlinesInternational = ['Emirates', 'Singapore Airlines', 'Qatar Airways', 'Thai Airways', 'Air India'];
+    
+    const availableAirlines = isInternational ? airlinesInternational : airlinesIndian;
+    
+    if (isInternational) {
+      const intlFlights: Flight[] = [];
+      const intlBudget = budget * 0.4;
       
-      flights.push({
-        airline: airlines[Math.floor(Math.random() * airlines.length)],
-        departure_time: `${departureHour.toString().padStart(2, '0')}:00`,
-        arrival_time: `${(departureHour + 2 + stops).toString().padStart(2, '0')}:30`,
-        duration: `${2 + stops * 2}h ${Math.floor(Math.random() * 40)}m`,
-        price: basePrice + priceVariation,
-        carbon_footprint: 350 + stops * 100,
-        stops,
-        booking_link: `https://www.makemytrip.com/flights/${source.toLowerCase()}-to-${destination.toLowerCase()}-flights.html`,
-      });
+      for (let i = 0; i < 3; i++) {
+        const hasOneStop = i === 0;
+        const hasTwoStops = i === 1;
+        const hasDirect = i === 2 && Math.random() > 0.7;
+        
+        let basePrice: number;
+        let flightDuration: string;
+        let carbon: number;
+        
+        if (hasDirect) {
+          basePrice = 25000 + Math.floor(Math.random() * 20000);
+          flightDuration = `${6 + Math.floor(Math.random() * 4)}h ${Math.floor(Math.random() * 50)}m`;
+          carbon = 1500 + Math.floor(Math.random() * 500);
+        } else if (hasOneStop) {
+          basePrice = 18000 + Math.floor(Math.random() * 15000);
+          flightDuration = `${8 + Math.floor(Math.random() * 5)}h ${Math.floor(Math.random() * 50)}m`;
+          carbon = 1200 + Math.floor(Math.random() * 400);
+        } else {
+          basePrice = 12000 + Math.floor(Math.random() * 10000);
+          flightDuration = `${12 + Math.floor(Math.random() * 8)}h ${Math.floor(Math.random() * 50)}m`;
+          carbon = 900 + Math.floor(Math.random() * 300);
+        }
+        
+        if (basePrice <= intlBudget) {
+          intlFlights.push({
+            airline: availableAirlines[Math.floor(Math.random() * availableAirlines.length)],
+            departure_time: `${(6 + i * 4).toString().padStart(2, '0')}:00`,
+            arrival_time: `${(14 + i * 3).toString().padStart(2, '0')}:30`,
+            duration: flightDuration,
+            price: basePrice,
+            carbon_footprint: carbon,
+            stops: hasDirect ? 0 : hasOneStop ? 1 : 2,
+            booking_link: `https://www.makemytrip.com/international-flights/`,
+          });
+        }
+      }
+      
+      return intlFlights.sort((a, b) => a.price - b.price);
+    }
+    
+    const flights: Flight[] = [];
+    const domesticBudget = budget * 0.3;
+    
+    if (hasDirectFlights) {
+      for (let i = 0; i < 3; i++) {
+        const basePrice = 3500 + Math.floor(Math.random() * 6000);
+        const departureHour = 6 + i * 3;
+        
+        if (basePrice <= domesticBudget) {
+          flights.push({
+            airline: availableAirlines[Math.floor(Math.random() * availableAirlines.length)],
+            departure_time: `${departureHour.toString().padStart(2, '0')}:00`,
+            arrival_time: `${(departureHour + 2).toString().padStart(2, '0')}:15`,
+            duration: '2h 15m',
+            price: basePrice,
+            carbon_footprint: 250 + Math.floor(Math.random() * 100),
+            stops: 0,
+            booking_link: `https://www.makemytrip.com/flights/${source.toLowerCase()}-to-${destination.toLowerCase()}-flights.html`,
+          });
+        }
+      }
+      
+      for (let i = 0; i < 2; i++) {
+        const basePrice = 2800 + Math.floor(Math.random() * 4000);
+        const departureHour = 8 + i * 4;
+        
+        if (basePrice <= domesticBudget) {
+          flights.push({
+            airline: availableAirlines[Math.floor(Math.random() * availableAirlines.length)],
+            departure_time: `${departureHour.toString().padStart(2, '0')}:30`,
+            arrival_time: `${(departureHour + 5).toString().padStart(2, '0')}:45`,
+            duration: '5h 15m',
+            price: basePrice,
+            carbon_footprint: 400 + Math.floor(Math.random() * 100),
+            stops: 1,
+            booking_link: `https://www.makemytrip.com/flights/${source.toLowerCase()}-to-${destination.toLowerCase()}-flights.html`,
+          });
+        }
+      }
+    } else {
+      for (let i = 0; i < 2; i++) {
+        const basePrice = 4500 + Math.floor(Math.random() * 8000);
+        const departureHour = 6 + i * 5;
+        
+        if (basePrice <= domesticBudget) {
+          flights.push({
+            airline: availableAirlines[Math.floor(Math.random() * availableAirlines.length)],
+            departure_time: `${departureHour.toString().padStart(2, '0')}:00`,
+            arrival_time: `${(departureHour + 6).toString().padStart(2, '0')}:30`,
+            duration: '6h 30m',
+            price: basePrice,
+            carbon_footprint: 500 + Math.floor(Math.random() * 150),
+            stops: 1,
+            booking_link: `https://www.makemytrip.com/flights/${source.toLowerCase()}-to-${destination.toLowerCase()}-flights.html`,
+          });
+        }
+      }
     }
     
     return flights.sort((a, b) => a.price - b.price);
   };
 
-  const generateTransport = (source: string, destination: string) => {
-    const indianDestinations = ['delhi', 'mumbai', 'bangalore', 'chennai', 'kolkata', 'hyderabad', 'pune', 'jaipur', 'goa', 'agra', 'udaipur', 'varanasi', 'shimla', 'manali', 'kerala'];
-    const isIndianRoute = indianDestinations.includes(destination.toLowerCase()) || indianDestinations.includes(source.toLowerCase());
+  const generateTransport = (source: string, destination: string, budget: number) => {
+    const indianCities = ['delhi', 'mumbai', 'bangalore', 'chennai', 'kolkata', 'hyderabad', 'pune', 'jaipur', 'goa', 'agra', 'udaipur', 'varanasi', 'shimla', 'manali', 'kerala', 'mysore', 'ahmedabad', 'chandigarh'];
+    const coastalCities = ['goa', 'kerala', 'mumbai', 'chennai', 'kolkata'];
+    const metroCities = ['delhi', 'mumbai', 'bangalore', 'chennai', 'kolkata', 'hyderabad', 'pune', 'jaipur', 'kochi'];
+    
+    const destLower = destination.toLowerCase();
+    const srcLower = source.toLowerCase();
+    const isIndianRoute = indianCities.includes(destLower) || indianCities.includes(srcLower);
+    const isCoastalDestination = coastalCities.includes(destLower);
+    const hasMetro = metroCities.includes(destLower);
+    
+    const transport: any = {};
+    const budgetForTransport = budget * 0.4;
     
     if (isIndianRoute) {
-      return {
-        bus: {
-          name: 'Volvo AC Bus',
-          price: Math.floor(Math.random() * 3000) + 1500,
-          bookingUrl: 'https://www.redbus.in',
-          duration: `${Math.floor(Math.random() * 10) + 6}h`,
-        },
-        train: {
-          name: 'Rajdhani Express',
-          price: Math.floor(Math.random() * 2000) + 800,
-          bookingUrl: 'https://www.irctc.co.in',
-          duration: `${Math.floor(Math.random() * 12) + 4}h`,
-        },
-        car: {
-          name: 'Sedan with Driver',
-          price: Math.floor(Math.random() * 15) + 10,
-          bookingUrl: 'https://www.olacabs.com',
-          duration: `${Math.floor(Math.random() * 10) + 5}h`,
-        },
+      const flightPrice = Math.floor(Math.random() * 6000) + 4000;
+      transport.flight = {
+        type: 'flight',
+        name: 'IndiGo / Air India / Vistara',
+        icon: 'plane',
+        description: 'Fastest way to reach',
+        price: flightPrice,
+        duration: `${Math.floor(Math.random() * 3) + 1}h`,
+        carbon: Math.floor(Math.random() * 400) + 250,
+        bookingUrl: `https://www.makemytrip.com/flights/${source.toLowerCase()}-to-${destination.toLowerCase()}-flights.html`,
+        provider: 'MakeMyTrip',
+        available: flightPrice <= budgetForTransport,
+        notPossibleReason: 'Flight exceeds budget',
       };
+      
+      const trainPrice = Math.floor(Math.random() * 1500) + 600;
+      transport.train = {
+        type: 'train',
+        name: 'Rajdhani / Shatabdi Express',
+        icon: 'train',
+        description: 'Comfortable & scenic journey',
+        price: trainPrice,
+        duration: `${Math.floor(Math.random() * 10) + 4}h`,
+        carbon: Math.floor(Math.random() * 15) + 5,
+        bookingUrl: 'https://www.irctc.co.in',
+        provider: 'IRCTC',
+        available: true,
+      };
+      
+      const busPrice = Math.floor(Math.random() * 2000) + 600;
+      transport.bus = {
+        type: 'bus',
+        name: 'Volvo AC Seater / Sleeper',
+        icon: 'bus',
+        description: 'Budget-friendly option',
+        price: busPrice,
+        duration: `${Math.floor(Math.random() * 10) + 6}h`,
+        carbon: Math.floor(Math.random() * 40) + 25,
+        bookingUrl: 'https://www.redbus.in',
+        provider: 'RedBus',
+        available: busPrice <= budgetForTransport,
+        notPossibleReason: 'Bus exceeds budget',
+      };
+      
+      const carPrice = Math.floor(Math.random() * 10) + 8;
+      transport.car = {
+        type: 'car',
+        name: 'Sedan / SUV with Driver',
+        icon: 'car',
+        description: 'Door-to-door convenience',
+        price: carPrice,
+        duration: `${Math.floor(Math.random() * 8) + 5}h`,
+        carbon: Math.floor(Math.random() * 80) + 50,
+        bookingUrl: 'https://www.olacabs.com',
+        provider: 'Ola / Uber',
+        priceUnit: 'per km',
+        available: carPrice <= 15,
+        notPossibleReason: 'Car rental exceeds budget',
+      };
+      
+      if (hasMetro) {
+        transport.metro = {
+          type: 'metro',
+          name: 'Metro Rail / Local Train',
+          icon: 'subway',
+          description: 'City commute within destination',
+          price: Math.floor(Math.random() * 80) + 40,
+          duration: `${Math.floor(Math.random() * 1.5) + 0.5}h`,
+          carbon: Math.floor(Math.random() * 3) + 1,
+          bookingUrl: `https://www.google.com/maps/search/metro+station+${destination.toLowerCase()}`,
+          provider: 'Local Metro',
+          available: true,
+        };
+      }
+      
+      if (isCoastalDestination || destLower === 'kerala') {
+        transport.ferry = {
+          type: 'ferry',
+          name: 'Ferry / Cruise',
+          icon: 'ship',
+          description: 'Scenic coastal route',
+          price: Math.floor(Math.random() * 1200) + 400,
+          duration: `${Math.floor(Math.random() * 5) + 2}h`,
+          carbon: Math.floor(Math.random() * 20) + 10,
+          bookingUrl: `https://www.google.com/maps/search/ferry+${destination.toLowerCase()}`,
+          provider: 'Local Ferry',
+          available: true,
+        };
+      }
+      
     } else {
-      return {
-        bus: {
-          name: 'Luxury Coach',
-          price: Math.floor(Math.random() * 5000) + 2000,
-          bookingUrl: 'https://www.busfinder.com',
-          duration: `${Math.floor(Math.random() * 15) + 8}h`,
-        },
-        train: {
-          name: 'Express Train',
-          price: Math.floor(Math.random() * 3000) + 1200,
-          bookingUrl: 'https://www.trainline.com',
-          duration: `${Math.floor(Math.random() * 18) + 6}h`,
-        },
-        car: {
-          name: 'Car Rental',
-          price: Math.floor(Math.random() * 50) + 30,
-          bookingUrl: 'https://www.hertz.com',
-          duration: `${Math.floor(Math.random() * 12) + 4}h`,
-        },
+      const flightPrice = Math.floor(Math.random() * 20000) + 12000;
+      transport.flight = {
+        type: 'flight',
+        name: 'Emirates / Singapore Airlines',
+        icon: 'plane',
+        description: 'Only option for international',
+        price: flightPrice,
+        duration: `${Math.floor(Math.random() * 8) + 3}h`,
+        carbon: Math.floor(Math.random() * 2000) + 1000,
+        bookingUrl: `https://www.makemytrip.com/international-flights/`,
+        provider: 'MakeMyTrip',
+        available: flightPrice <= budgetForTransport,
+        notPossibleReason: 'International flight exceeds budget',
+      };
+      
+      const trainPrice = Math.floor(Math.random() * 4000) + 1500;
+      transport.train = {
+        type: 'train',
+        name: 'International Rail / Eurostar',
+        icon: 'train',
+        description: 'Available in Europe & Asia',
+        price: trainPrice,
+        duration: `${Math.floor(Math.random() * 12) + 5}h`,
+        carbon: Math.floor(Math.random() * 50) + 20,
+        bookingUrl: 'https://www.trainline.com',
+        provider: 'Trainline',
+        available: trainPrice <= budgetForTransport,
+        notPossibleReason: 'Train not available for this route',
+      };
+      
+      const busPrice = Math.floor(Math.random() * 3000) + 1200;
+      transport.bus = {
+        type: 'bus',
+        name: 'Luxury Coach / FlixBus',
+        icon: 'bus',
+        description: 'Budget intercity travel',
+        price: busPrice,
+        duration: `${Math.floor(Math.random() * 15) + 8}h`,
+        carbon: Math.floor(Math.random() * 60) + 30,
+        bookingUrl: 'https://www.busfinder.com',
+        provider: 'FlixBus',
+        available: busPrice <= budgetForTransport,
+        notPossibleReason: 'Bus not available for this route',
+      };
+      
+      transport.car = {
+        type: 'car',
+        name: 'Rental Car / Taxi',
+        icon: 'car',
+        description: 'Flexible exploration',
+        price: Math.floor(Math.random() * 60) + 35,
+        duration: `${Math.floor(Math.random() * 10) + 4}h`,
+        carbon: Math.floor(Math.random() * 100) + 60,
+        bookingUrl: 'https://www.hertz.com',
+        provider: 'Hertz / Sixt',
+        priceUnit: 'per day',
+        available: true,
+      };
+      
+      transport.metro = {
+        type: 'metro',
+        name: 'Metro / MRT',
+        icon: 'subway',
+        description: 'City transport at destination',
+        price: Math.floor(Math.random() * 150) + 40,
+        duration: `${Math.floor(Math.random() * 1.5) + 0.5}h`,
+        carbon: Math.floor(Math.random() * 2) + 1,
+        bookingUrl: `https://www.google.com/maps/search/metro+${destination.toLowerCase()}`,
+        provider: 'Local Metro',
+        available: true,
       };
     }
+    
+    return transport;
   };
 
   const getAllActivities = () => {
@@ -344,7 +691,7 @@ function DashboardContent() {
             </div>
             <TabsList>
               <TabsTrigger value="plan">Plan</TabsTrigger>
-              <TabsTrigger value="flights" disabled={!itinerary}>Flights</TabsTrigger>
+              <TabsTrigger value="travel" disabled={!itinerary}>Travel Options</TabsTrigger>
               <TabsTrigger value="transport" disabled={!itinerary}>Transport</TabsTrigger>
               <TabsTrigger value="itinerary" disabled={!itinerary}>Itinerary</TabsTrigger>
               <TabsTrigger value="map" disabled={!itinerary}>Map</TabsTrigger>
@@ -537,81 +884,49 @@ function DashboardContent() {
             </div>
           </TabsContent>
 
-          <TabsContent value="flights">
+          <TabsContent value="travel">
             {itinerary && (
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Plane className="h-5 w-5" />
-                      Available Flights - {itinerary.source} to {itinerary.destination}
+                      <Navigation2 className="h-5 w-5" />
+                      All Travel Options - {itinerary.source} to {itinerary.destination}
                     </CardTitle>
+                    <p className="text-muted-foreground">Compare all available transport options for your trip</p>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {itinerary.flights.map((flight, idx) => (
-                        <motion.div
-                          key={idx}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.1 }}
-                          className={cn(
-                            "p-4 rounded-lg border-2 cursor-pointer transition-all",
-                            selectedFlight === flight ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
-                          )}
-                          onClick={() => setSelectedFlight(flight)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-6">
-                              <div className="text-center">
-                                <p className="text-lg font-bold">{flight.departure_time}</p>
-                                <p className="text-xs text-muted-foreground">{itinerary.source}</p>
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <p className="text-xs text-muted-foreground">{flight.duration}</p>
-                                <div className="flex items-center gap-1">
-                                  <div className="w-2 h-2 rounded-full bg-primary" />
-                                  <div className="w-20 h-px bg-border relative">
-                                    {flight.stops > 0 && (
-                                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-yellow-500" />
-                                    )}
-                                  </div>
-                                  <Plane className="h-3 w-3 text-primary" />
-                                </div>
-                                <p className="text-xs text-muted-foreground capitalize">
-                                  {flight.stops === 0 ? 'Direct' : `${flight.stops} stop`}
-                                </p>
-                              </div>
-                              <div className="text-center">
-                                <p className="text-lg font-bold">{flight.arrival_time}</p>
-                                <p className="text-xs text-muted-foreground">{itinerary.destination}</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-2xl font-bold text-primary">{formatCurrency(flight.price)}</p>
-                              <p className="text-xs text-muted-foreground">{flight.airline}</p>
-                              <Badge variant="outline" className="mt-1 text-xs">
-                                {flight.carbon_footprint.toFixed(0)} kg CO₂
-                              </Badge>
-                            </div>
-                          </div>
-                          {selectedFlight === flight && (
-                            <div className="mt-4 pt-4 border-t flex justify-between items-center">
-                              <div className="flex gap-2">
-                                <Badge variant="secondary">Best Price</Badge>
-                                {flight.stops === 0 && <Badge variant="outline">Direct Flight</Badge>}
-                              </div>
-                              <a href={flight.booking_link} target="_blank" rel="noopener noreferrer">
-                                <Button size="sm">
-                                  Book on MakeMyTrip
-                                  <ExternalLink className="h-3 w-3 ml-2" />
-                                </Button>
-                              </a>
-                            </div>
-                          )}
-                        </motion.div>
-                      ))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {itinerary.transport?.flight && (
+                        <TransportCard transport={itinerary.transport.flight} delay={0} />
+                      )}
+                      {itinerary.transport?.train && (
+                        <TransportCard transport={itinerary.transport.train} delay={0.1} />
+                      )}
+                      {itinerary.transport?.bus && (
+                        <TransportCard transport={itinerary.transport.bus} delay={0.2} />
+                      )}
+                      {itinerary.transport?.car && (
+                        <TransportCard transport={itinerary.transport.car} delay={0.3} />
+                      )}
+                      {itinerary.transport?.metro && (
+                        <TransportCard transport={itinerary.transport.metro} delay={0.4} />
+                      )}
+                      {itinerary.transport?.ferry && (
+                        <TransportCard transport={itinerary.transport.ferry} delay={0.5} />
+                      )}
                     </div>
+
+                    <div className="mt-8 p-4 bg-muted/50 rounded-lg">
+                      <h4 className="font-semibold mb-2">💡 Travel Tips</h4>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• <span className="text-green-600 font-medium">Trains</span> are the most eco-friendly with lowest carbon footprint</li>
+                        <li>• <span className="text-orange-600 font-medium">Buses</span> are budget-friendly with scenic routes</li>
+                        <li>• <span className="text-blue-600 font-medium">Cars</span> offer flexibility for stop-and-explore trips</li>
+                        <li>• <span className="text-primary font-medium">Flights</span> are fastest but have highest carbon impact</li>
+                      </ul>
+                    </div>
+
                     <div className="mt-6 flex justify-center gap-4">
                       <Button 
                         variant="outline"
@@ -632,174 +947,7 @@ function DashboardContent() {
                         )}
                       </Button>
                       <Button onClick={() => setActiveTab('itinerary')} size="lg">
-                        Continue to Itinerary
-                        <ChevronRight className="h-4 w-4 ml-2" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="transport">
-            {itinerary && (
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Navigation2 className="h-5 w-5" />
-                      Alternative Transport Options - {itinerary.source} to {itinerary.destination}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {itinerary.transport?.bus && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.1 }}
-                        >
-                          <Card className="h-full hover:shadow-lg transition-shadow">
-                            <CardHeader className="pb-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                                  <Bus className="h-5 w-5 text-orange-600" />
-                                </div>
-                                <div>
-                                  <CardTitle className="text-lg">{itinerary.transport.bus.name}</CardTitle>
-                                  <p className="text-sm text-muted-foreground">Bus</p>
-                                </div>
-                              </div>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-3">
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Duration</span>
-                                  <span className="font-medium">{itinerary.transport.bus.duration}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Price</span>
-                                  <span className="font-bold text-xl text-primary">{formatCurrency(itinerary.transport.bus.price)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Carbon</span>
-                                  <Badge variant="outline">{Math.floor(Math.random() * 30) + 20} kg CO₂</Badge>
-                                </div>
-                                <a href={itinerary.transport.bus.bookingUrl} target="_blank" rel="noopener noreferrer" className="block mt-4">
-                                  <Button className="w-full" variant="outline">
-                                    Book on RedBus
-                                    <ExternalLink className="h-3 w-3 ml-2" />
-                                  </Button>
-                                </a>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      )}
-
-                      {itinerary.transport?.train && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.2 }}
-                        >
-                          <Card className="h-full hover:shadow-lg transition-shadow border-green-200 dark:border-green-800">
-                            <CardHeader className="pb-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                  <Train className="h-5 w-5 text-green-600" />
-                                </div>
-                                <div>
-                                  <CardTitle className="text-lg">{itinerary.transport.train.name}</CardTitle>
-                                  <p className="text-sm text-muted-foreground">Train</p>
-                                </div>
-                              </div>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-3">
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Duration</span>
-                                  <span className="font-medium">{itinerary.transport.train.duration}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Price</span>
-                                  <span className="font-bold text-xl text-primary">{formatCurrency(itinerary.transport.train.price)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Carbon</span>
-                                  <Badge variant="outline" className="bg-green-50 text-green-700">{(Math.floor(Math.random() * 15) + 5).toFixed(0)} kg CO₂</Badge>
-                                </div>
-                                <a href={itinerary.transport.train.bookingUrl} target="_blank" rel="noopener noreferrer" className="block mt-4">
-                                  <Button className="w-full" variant="outline">
-                                    Book on IRCTC
-                                    <ExternalLink className="h-3 w-3 ml-2" />
-                                  </Button>
-                                </a>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      )}
-
-                      {itinerary.transport?.car && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.3 }}
-                        >
-                          <Card className="h-full hover:shadow-lg transition-shadow">
-                            <CardHeader className="pb-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                  <Car className="h-5 w-5 text-blue-600" />
-                                </div>
-                                <div>
-                                  <CardTitle className="text-lg">{itinerary.transport.car.name}</CardTitle>
-                                  <p className="text-sm text-muted-foreground">Car/Taxi</p>
-                                </div>
-                              </div>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-3">
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Duration</span>
-                                  <span className="font-medium">{itinerary.transport.car.duration}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Price (per day)</span>
-                                  <span className="font-bold text-xl text-primary">{formatCurrency(itinerary.transport.car.price)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Carbon</span>
-                                  <Badge variant="outline">{(Math.floor(Math.random() * 50) + 30).toFixed(0)} kg CO₂</Badge>
-                                </div>
-                                <a href={itinerary.transport.car.bookingUrl} target="_blank" rel="noopener noreferrer" className="block mt-4">
-                                  <Button className="w-full" variant="outline">
-                                    Book on Ola/Uber
-                                    <ExternalLink className="h-3 w-3 ml-2" />
-                                  </Button>
-                                </a>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      )}
-                    </div>
-
-                    <div className="mt-8 p-4 bg-muted/50 rounded-lg">
-                      <h4 className="font-semibold mb-2">💡 Travel Tips</h4>
-                      <ul className="text-sm text-muted-foreground space-y-1">
-                        <li>• Trains are the most eco-friendly option with lowest carbon footprint</li>
-                        <li>• Buses are budget-friendly and offer scenic routes</li>
-                        <li>• Car rentals give you flexibility but consider fuel costs</li>
-                        <li>• For international destinations, flights may be the only option</li>
-                      </ul>
-                    </div>
-
-                    <div className="mt-6 flex justify-center">
-                      <Button onClick={() => setActiveTab('itinerary')} size="lg">
-                        Continue to Itinerary
+                        View Itinerary
                         <ChevronRight className="h-4 w-4 ml-2" />
                       </Button>
                     </div>

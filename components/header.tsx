@@ -6,16 +6,19 @@ import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Sun, Moon, Menu, X, Plane, User, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
+import { useEffect } from 'react';
 
-interface HeaderProps {
-  onToggleTheme?: () => void;
-  isDark?: boolean;
-}
-
-export function Header({ onToggleTheme, isDark = false }: HeaderProps) {
+export function Header() {
   const { data: session, status } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleTryFree = () => {
     if (status === 'loading') return;
@@ -24,6 +27,10 @@ export function Header({ onToggleTheme, isDark = false }: HeaderProps) {
     } else {
       router.push('/auth/register');
     }
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   return (
@@ -76,10 +83,11 @@ export function Header({ onToggleTheme, isDark = false }: HeaderProps) {
           )}
 
           <button
-            onClick={onToggleTheme}
+            onClick={toggleTheme}
             className="p-2 rounded-md hover:bg-accent transition-colors"
+            aria-label="Toggle theme"
           >
-            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            {mounted && theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>
 
           <button

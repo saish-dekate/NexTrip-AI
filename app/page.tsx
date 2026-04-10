@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -11,7 +11,6 @@ import { motion } from 'framer-motion';
 import { Header } from '@/components/header';
 
 export default function HomePage() {
-  const [isDark, setIsDark] = useState(false);
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -48,12 +47,11 @@ export default function HomePage() {
   ];
 
   return (
-    <div className={`min-h-screen ${isDark ? 'dark' : ''}`}>
-      <div className="bg-background text-foreground dark:bg-gray-900 dark:text-white transition-colors">
-        <Header onToggleTheme={() => setIsDark(!isDark)} isDark={isDark} />
+    <div className="min-h-screen">
+        <Header />
 
         <main className="container mx-auto px-4">
-          <section className="py-20 text-center">
+          <section className="min-h-[80vh] flex items-center justify-center text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -72,14 +70,23 @@ export default function HomePage() {
                 and collaborative planning - completely free forever.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" className="text-lg px-8" onClick={handleTryFree}>
+                <motion.button
+                  onClick={handleTryFree}
+                  className="inline-flex items-center justify-center text-lg px-8 py-3 rounded-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  whileTap={{ scale: 0.95 }}
+                >
                   {status === 'authenticated' ? 'Go to Dashboard' : 'Start Planning Free'}
                   <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
+                </motion.button>
                 <Link href="/dashboard">
-                  <Button size="lg" variant="outline" className="text-lg px-8">
+                  <motion.button
+                    className="inline-flex items-center justify-center text-lg px-8 py-3 rounded-lg font-medium border-2 border-primary text-primary hover:bg-primary/10 transition-all"
+                    whileHover={{ scale: 1.05, y: -5 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
                     Open App
-                  </Button>
+                  </motion.button>
                 </Link>
               </div>
             </motion.div>
@@ -144,10 +151,15 @@ export default function HomePage() {
             <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
               Join thousands of travelers who plan smarter with NexTrip AI. Your perfect trip is just a click away.
             </p>
-            <Button size="lg" className="text-lg px-8" onClick={handleTryFree}>
+            <motion.button
+              onClick={handleTryFree}
+              className="inline-flex items-center justify-center text-lg px-8 py-3 rounded-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+              whileHover={{ scale: 1.05, y: -5 }}
+              whileTap={{ scale: 0.95 }}
+            >
               Get Started Now - It's Free
               <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
+            </motion.button>
           </section>
 
           <section className="py-16 border-t">
@@ -186,6 +198,5 @@ export default function HomePage() {
           </div>
         </footer>
       </div>
-    </div>
   );
 }
